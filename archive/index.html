@@ -1,0 +1,136 @@
+<html lang="en">
+
+<head>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://d3js.org/topojson.v3.min.js"></script>
+  <script src="neighborhoods.js"></script>
+  <style>
+
+    .entire-panel {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 15px;
+}
+
+  .right-panel{
+    margin-top: 30px;
+    top: 30px;
+    width: 300px;
+    height: 100vh;
+    box-shadow: -2px 0px 5px rgba(0,0,0,0.1);
+    font-family: Arial, sans-serif;
+  }
+
+  #details h3 {
+    margin-top: 0;
+  }
+
+  </style>
+</head>
+
+<body>
+  <div class = "entire-panel">
+    <div class="left">
+      <h1> Yelp Boston</h1>
+      <h2 style="margin-top: 0px;">Filters</h2>
+      <svg id="boston_map"  class="svg_maps" height="1000" width="800" style="background: white"></svg>
+    </div>
+    <div class = "right-panel">
+       <div id="details">Click a circle for details...</div>
+      </div>
+  </div>
+
+  <script>
+    const mapsvg = d3.select("#boston_map");
+    const mapWidth = mapsvg.attr("width");
+    const mapHeight = mapsvg.attr("height");
+    const mapMargin = { top: 20, right: 20, bottom: 20, left:20};
+
+    const mapAreaWidth = mapWidth - mapMargin.left - mapMargin.right;
+    const mapAreaHeight = mapHeight - mapMargin.top - mapMargin.bottom;
+    const map = mapsvg.append("g")
+                    .attr("transform","translate("+mapMargin.left+","+mapMargin.top+")");
+
+    async function requestData() {
+
+      const data = await d3.csv("yelp_boston.csv");
+      // const json_map = await d3.json("bostonhoods.json");
+
+      var albersProjection = d3.geoAlbers()
+                 .scale( 190000 )
+                 .rotate( [71.057,0] )
+                 .center( [0, 42.313] )
+                 // .translate( [mapAreaWidth/2,mapAreaHeight/2] );
+
+      var Path = d3.geoPath().projection( albersProjection );
+
+      // console.log(neighborhoods_json.features )
+
+      async function drawBaseMap() {
+
+        map.selectAll( "path" )
+        .data( neighborhoods_json.features)
+        .enter()
+        .append( "path" )
+        .attr( "fill", "white" )
+        .attr( "stroke", "#999")
+        .attr( "d", Path );
+
+      }
+       drawBaseMap();
+
+         async function drawRestaurant() {
+                map.selectAll("circle")
+                    .data(data)
+                    .enter()
+                    .append("circle")
+                    .attr("cx", d => albersProjection([d.longitude, d.latitude])[0])
+                    .attr("cy", d => albersProjection([d.longitude, d.latitude])[1])
+                    .attr("r", 3)
+                    .style("fill", "red")
+                    .style("opacity", 0.5)
+                    .on("click", function(event, d) {
+                    const location = JSON.parse(d.location_json);
+                    const category = JSON.parse(d.categories_json)
+                    let categoryNames = category.map(category => category[0]).join(", ");
+                    const displayAddress = location.display_address.join(', ');
+                    const detailsHtml = `
+                        <h3>${d.name}</h3>
+                        <p>Address: ${displayAddress}</p>
+                        <p>Category: ${categoryNames}</p>
+                        <p>Rating: ${d.rating} / 5</p>
+                    `;
+                    document.getElementById("details").innerHTML = detailsHtml;
+        });
+       }
+
+       drawRestaurant();
+
+       function plotZoomed({transform}){
+
+
+       }
+
+       let zoomExtent = [[0,0],[mapWidth,mapHeight]];
+       let translateExtent = [[-100,-100],[mapWidth+100,mapHeight+100]];
+       var plotZoom = d3.zoom()
+                      .extent(zoomExtent)
+                      .translateExtent(translateExtent)
+                      .scaleExtent([1,10])
+                      .on("zoom", plotZoomed);
+
+      // map.call(plotZoom);
+
+
+
+    }
+
+      requestData();
+
+
+  </script>
+</body>
+</html>

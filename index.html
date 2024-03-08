@@ -1,0 +1,379 @@
+<html lang="en">
+
+<head>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://d3js.org/topojson.v3.min.js"></script>
+  <script src="neighborhoods.js"></script>
+  <style>
+      body {
+        padding: 2em 2em;
+        margin: auto;
+
+        font-family: Helvetica
+      }
+
+
+    .flex-container {
+        display: flex;
+        height: 100vh;
+        justify-content: space-between;
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 0px;
+    }
+
+
+    #left-panel {
+      flex: 1 1 65%;
+      margin: 0;
+         /* Takes up 2/3 of the space */
+      background: #f0f0f0; /* Just to visualize the space */
+    }
+
+    #right-panel{
+      flex:1 1 35%;
+      margin: 0;
+      display:flex;
+      flex-direction:column;
+      margin-top: 30px;
+        /* background: #e0e0e0; */
+    }
+
+    /* #filter-panel {
+    margin-top: 20px;
+    padding: 10px;
+} */
+
+    #boston_map {
+        width: 100%;
+        height: 100%;
+        background: white;
+    }
+
+    #details h3 {
+        margin-top: 0;
+    }
+
+    #filter-panel h2 {
+    margin-left: 0;
+    padding-left: 0;
+}
+
+#filter-panel ul {
+    list-style-type: none; /* Removes default list styling */
+    padding: 0;
+}
+
+
+
+
+
+
+  </style>
+</head>
+
+
+<body>
+    <h1> Yelp Boston</h1>
+  <!-- <div id = "entire-panel"> -->
+    <div class="flex-container">
+
+    <div id="right-panel">
+
+
+    <div id = "filter-panel">
+        <h2>Filter</h2>
+        <ul id='filterul'>
+            <label class="checkbox">
+                <input type="checkbox" id="newamerican" name="newamerican"  >
+                New American
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" id="sandwiches"  name="sandwiches" >
+                Sandwiches
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" id="pizza"  name="pizza" >
+                Pizza
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" id="donuts"  name="donuts" >
+                Donuts
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" id="bakeries"  name="info" >
+                Bakery
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" id="ethnicmarkets"  name="ethnicmarkets" >
+                Ethnic Markets
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" id="cafes"  name="cafes" >
+                Cafe
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" id="coffee"  name="coffee" >
+                Coffee
+            </label>
+            <!-- cuisines -->
+            <label class="checkbox">
+                <input type="checkbox" id="indpak"  name="indpak" >
+                Indian & Pakistani
+            </label>
+
+            <label class="checkbox">
+                <input type="checkbox" id="chinese"  name="chinese" >
+                Chinese
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" id="japanese"  name="japanese" >
+                Japanese
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" id="mexican"  name="mexican" >
+                Mexican
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" id="thai"  name="thai" >
+                Thai
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" id="italian"  name="italian" >
+                Italian
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" id="vietnamese"  name="vietnamese" >
+                Vietnamese
+            </label>
+            <label class="checkbox">
+                <input type="checkbox" id="french"  name="french" >
+                French
+            </label>
+        </ul>
+    </div>
+
+    <div id="details">Click a circle for details...</div>
+
+        <!-- </div> -->
+    </div>
+
+    <div id="left-panel"></div>
+
+
+</div>
+
+
+<script>
+    const mapsvg = d3.select("#left-panel")
+                     .append("svg")
+                     .attr("id", "boston_map")
+    const mapWidth = mapsvg.attr("width");
+    const mapHeight = mapsvg.attr("height");
+    const mapMargin = { top: 100, right: 20, bottom: 20, left:20};
+
+    const mapAreaWidth = mapWidth - mapMargin.left - mapMargin.right;
+    const mapAreaHeight = mapHeight - mapMargin.top - mapMargin.bottom;
+    const map = mapsvg.append("g")
+                    .attr("transform","translate("+mapMargin.left+","+mapMargin.top+")");
+
+    const viewport = map.append("g");
+
+    async function requestData() {
+
+      const data = await d3.csv("yelp_boston.csv");
+      // const json_map = await d3.json("bostonhoods.json");
+      console.log(data)
+
+      var albersProjection = d3.geoAlbers()
+                 .scale( 190000 )
+                 .rotate( [71.057,0] )
+                 .center( [0, 42.313] )
+                 // .translate( [mapAreaWidth/2,mapAreaHeight/2] );
+
+      var Path = d3.geoPath().projection( albersProjection );
+
+      // console.log(neighborhoods_json.features )
+
+
+        async function drawBaseMap() {
+            map.selectAll( "path" )
+            .data( neighborhoods_json.features)
+            .enter()
+            .append( "path" )
+            .attr( "fill", "white" )
+            .attr( "stroke", "#999")
+            .attr( "d", Path );
+
+        }
+        drawBaseMap();
+
+
+        // draw circles
+        async function drawRestaurant() {
+            updateMap(data);
+
+            // event listener
+            document.querySelectorAll('#filter-panel input[type=checkbox]').forEach(function(checkbox) {
+                checkbox.addEventListener('change', function() {
+
+                    const checkedCheckboxes = document.querySelectorAll('input[type=checkbox]:checked');
+                    let filteredData = data;
+
+                    if (checkedCheckboxes.length > 0) {
+                        filteredData = data.filter(d => Array.from(checkedCheckboxes).some(cb => cb.id === d['search_category']));
+                    }
+                    updateMap(filteredData);
+                });
+            });
+        }
+        drawRestaurant();
+
+
+        const categoryIcons = {
+            "chinese": "images/chinese.png",
+            "japanese": "images/japanese.png",
+            "mexican": "images/mexican.png",
+            "italian": "images/italian.png",
+            "thai": "images/thai.png",
+            "indpak": "images/indpak.png",
+            "vietnamese": "images/vietamese.png",
+            "french": "images/french.png",
+            "newamerican": "images/newamerican.png",
+            "coffee": "images/coffee.png",
+            "cafes": "images/cafe.png",
+            "bakeries": "images/bakery.png",
+            "ethnicmarkets": "images/ethnicmarkets.png",
+            "donuts": "images/donuts.png",
+            "pizza": "images/pizza.png",
+            "sandwiches": "images/sandwiches.png",
+        };
+
+
+        // update map
+        function updateMap(filteredData) {
+            const checkedCheckboxes = document.querySelectorAll('input[type=checkbox]:checked');
+            const useicons = checkedCheckboxes.length > 0;
+            map.selectAll("circle, image").remove();
+
+            // Check boundary
+            const validData = filteredData.filter(d => {
+            const point = [parseFloat(d.longitude), parseFloat(d.latitude)];
+            return neighborhoods_json.features.some(feature => d3.geoContains(feature, point));
+        });
+
+
+        // append images
+        if (useicons) {
+            validData.forEach(d => {
+            const category = d.search_category;
+                if (categoryIcons[category]) {
+                    console.log(categoryIcons[category])
+                    map.selectAll('image')
+                        .data(validData, d => d.name)
+                        .enter()
+                        .append('image')
+                        .attr('xlink:href', categoryIcons[category])
+                        .attr('x', albersProjection([d.longitude, d.latitude])[0] - 10)
+                        .attr('y', albersProjection([d.longitude, d.latitude])[1] - 10)
+                        .on('click', function(event, d) {
+                            console.log(d)
+                            const location = JSON.parse(d.location_json);
+                            const category = JSON.parse(d.categories_json);
+                            let categoryNames = category.map(category => category[0]).join(", ");
+                            const displayAddress = location.display_address.join(', ');
+                            let detailsHtml = `
+                                <br>
+                                <br>
+                                <h3>${d.name}</h3>
+                                <p><b>Address: </b>${displayAddress}</p>
+                                <p><b>Category:</b> ${categoryNames}</p>
+                                <p><b>Rating:</b> ${d.rating} / 5</p>
+                                <p><b>Review Snippet: </b>${d.snippet_text}</p>
+                                `;
+                            if (d.url) {
+                                detailsHtml += `<button onclick="window.open('${d.url}', '_blank')">Visit Website</button>`
+                            }
+                            document.getElementById("details").innerHTML = detailsHtml;
+                        });
+                    // map.exit();
+                }
+            });
+        } else {
+            const circles = map.selectAll("circle").data(validData);
+            circles.enter()
+                .append("circle")
+                .merge(circles)
+                .attr("cx", d => albersProjection([d.longitude, d.latitude])[0])
+                .attr("cy", d => albersProjection([d.longitude, d.latitude])[1])
+                .attr("r", 3)
+                .style("fill", "red")
+                .style("opacity", 0.5)
+                .on("click", function(event, d) {
+                    const location = JSON.parse(d.location_json);
+                    const category = JSON.parse(d.categories_json);
+                    let categoryNames = category.map(category => category[0]).join(", ");
+                    const displayAddress = location.display_address.join(', ');
+                    let detailsHtml = `
+                        <br>
+                        <br>
+                        <h3>${d.name}</h3>
+                        <p><b>Address:</b> ${displayAddress}</p>
+                        <p><b>Category:</b> ${categoryNames}</p>
+                        <p><b>Rating:</b> ${d.rating} / 5</p>
+                        <p><b>Review Snippet:</b> <i> ${d.snippet_text} </i></p>
+                    `;
+                if (d.url) {
+                    detailsHtml += `<button onclick="window.open('${d.url}', '_blank')">Visit Website</button>`
+
+                }
+                document.getElementById("details").innerHTML = detailsHtml;
+        });
+            circles.exit().remove();
+        }
+    }
+
+
+        function plotZoomed({transform}){
+          console.log(transform)
+          map.attr("transform", transform)
+        }
+
+        let zoomExtent = [[0,0],[mapWidth,mapHeight]];
+        let translateExtent = [[-200,-200],[mapWidth+200,mapHeight+200]];
+        var plotZoom = d3.zoom()
+                        .extent(zoomExtent)
+                        .translateExtent(translateExtent)
+                        .scaleExtent([0.5,10])
+                        .on("zoom", plotZoomed);
+
+        map.call(plotZoom);
+
+    }
+    requestData();
+
+    function debounce(func, wait) {
+    let timeout;
+
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+const debouncedResize = debounce(function() {
+    console.log('Resizing completed!');
+}, 250);
+
+window.addEventListener('resize', debouncedResize);
+
+
+
+  </script>
+</body>
+</html>
